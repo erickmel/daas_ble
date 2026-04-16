@@ -85,8 +85,9 @@ void periodicTask(void *parameter){
         #endif
         if(nodeConnected){
             printf("Connected\n");
-        sendData(status);
-        receiveData();}
+            status.devicetime = 1234;
+            sendData(status);
+            receiveData();}
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
 }

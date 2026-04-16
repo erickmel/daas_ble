@@ -1,11 +1,13 @@
 #include <stdio.h>
+#include <cstring>
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "nvs_flash.h"
 #include "daas.hpp"
 #include "daas_nodes.h"
+#include "datatypes.h"
 
-bool nodeConnected = false;
+bool nodeConnected = true;
 din_t foundDIN;
 
 class event_daas : public IDaasApiEvent {
@@ -37,15 +39,24 @@ event_daas *event = new event_daas();
 DaasAPI daas(event);
 // DaasAPI daas;
 
-void sendData(uint8_t data){
-    DDO out(1);
+dev_stat_t status;
+#define STATUS_TS 3110
 
-    uint8_t buffer[1] = {data};
+void sendData(dev_stat_t data){
+    DDO out(STATUS_TS);
 
-    out.allocatePayload(1);
-    out.setPayload(buffer, 1);
+    // uint8_t buffer[1] = {data};
 
-    daas_error_t res = daas.push(foundDIN, &out);
+    constexpr uint32_t packetSize = sizeof(dev_stat_t);
+
+    uint8_t buffer[packetSize];
+    memset(buffer, 0, packetSize);          // buffer pulito
+    memcpy(buffer, &data, packetSize);     // copia sicura
+
+    out.allocatePayload(packetSize);
+    out.setPayload(buffer, packetSize);
+
+    daas_error_t res = daas.push(102, &out);
     if(res == ERROR_NONE) printf("[PUSH] Sent data");
     else printf("[PUSH] Error %d",res);
 }
@@ -67,10 +78,14 @@ bool receiveData(void){
 void periodicTask(void *parameter){
     for(;;){
         #ifdef NODEA
-        if(!nodeConnected) daas.discovery();
+        if(!nodeConnected) {
+            // daas.discovery();
+            printf("Discovery \n");
+        }
         #endif
         if(nodeConnected){
-        sendData(10);
+            printf("Connected\n");
+        sendData(status);
         receiveData();}
         vTaskDelay(pdMS_TO_TICKS(10000));
     }
@@ -97,11 +112,11 @@ extern "C" void app_main() {
 
     // 3. Inizializza il resto del nodo Daas
     daas.setATSMaxError(1000);
-    daas.doInit(0x01, localDIN); 
+    daas.doInit(100, localDIN); 
 
     daas.setDiscoveryState(discovery_full); // Abilita la discovery completa
 
-    daas.addTypeset(1, [](din_t din) {
+    daas.addTypeset(3110, [](din_t din) {
         printf("Typeset 1 function called for DIN: %lu\n", din);
     });
 
@@ -111,10 +126,10 @@ extern "C" void app_main() {
     printf("DaaS API Build Info: %s\n", daas.getBuildInfo());
     printf("Available Drivers: %s\n", daas.listAvailableDrivers());
     
-    // err = daas.map(remoteDIN, _LINK_BLE, remote_uri);
-    // if(err == ERROR_NONE) printf("Remote DIN mapped\n");
-    // err = daas.locate(remoteDIN);
-    // if(err == ERROR_NONE) printf("Remote DIN located\n");
+    err = daas.map(remoteDIN, _LINK_BLE, remote_uri);
+    if(err == ERROR_NONE) printf("Remote DIN mapped\n");
+    err = daas.locate(remoteDIN);
+    if(err == ERROR_NONE) printf("Remote DIN located\n");
     // Al posto del loop(), crei un task o metti un delay infinito
     while (1) {
       daas.doPerform(PERFORM_CORE_NO_THREAD); // Esegui il core in modalità real-time

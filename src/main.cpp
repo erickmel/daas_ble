@@ -10,7 +10,10 @@ din_t foundDIN;
 
 class event_daas : public IDaasApiEvent {
 public:
-    void dinAccepted(din_t) override {}
+    void dinAccepted(din_t din) override {
+        printf("[DIN Accepted] DIN: %d\n", (din<<44));
+        foundDIN = din;
+    }
     void ddoReceived(int payload_size, typeset_t typeset, din_t din) override {
         printf("DDO Received\n");
     }
@@ -19,12 +22,13 @@ public:
     void atsSyncCompleted(din_t) override {}
     void frisbeeDperfCompleted(din_t, uint32_t packets_sent, uint32_t block_size) override {}
     void nodeDiscovered(din_t din, link_t link) override {
-        // printf("[Discovery] DIN: %d\n", (din>>44));
+        printf("[Discovery] DIN: %d\n", (din>>44));
+        printf("-------------------");
     }
     void nodeConnectedToNetwork(din_t sid, din_t din) override {
         printf("[nodeConnected] DIN: %d\n", (din<<44));
         nodeConnected = true;
-        foundDIN = din;
+        
     }
     virtual void streamInfoReceived(din_t din, stream_type pkt_type, uint32_t stream_id) override {}
 
